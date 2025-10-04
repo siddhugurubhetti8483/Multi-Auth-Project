@@ -14,8 +14,5 @@
         public int FailedLoginAttempts { get; set; } = 0;
         public DateTime? LockoutEnd { get; set; }
 
-
-
-
     }
 }

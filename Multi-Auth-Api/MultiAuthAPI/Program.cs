@@ -1,4 +1,6 @@
 using System.Text;
+using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -6,14 +8,31 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MultiAuthAPI.Data;
 using MultiAuthAPI.Helpers;
+using MultiAuthAPI.Middlewares;
 using MultiAuthAPI.Services;
-using Microsoft.AspNetCore.Authentication.Google;
+using Serilog;
+using Microsoft.AspNetCore.Mvc;
+
+
+// Configure Serilog first
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
 
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Tell the host to use Serilog
+builder.Host.UseSerilog();
+
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddFluentValidation(fv =>
+{
+    fv.RegisterValidatorsFromAssemblyContaining<Program>();
+});
+
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JwtTokenGenerator>();
 builder.Services.AddScoped<EmailService>();
@@ -108,6 +127,12 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddApiVersioning(config =>
+{
+    config.DefaultApiVersion = new ApiVersion(1, 0);
+    config.AssumeDefaultVersionWhenUnspecified = true;
+    config.ReportApiVersions = true;
+});
 
 var app = builder.Build();
 
@@ -120,11 +145,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();  //route controllers like AuthController
+app.MapControllers();
 
 
 app.Run();

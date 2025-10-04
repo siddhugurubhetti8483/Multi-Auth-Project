@@ -167,10 +167,5 @@ namespace MultiAuthAPI.Controllers
 
             return Ok("Verification email re-sent.");
         }
-
-
-
-
-
     }
 }
